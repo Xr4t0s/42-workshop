@@ -1,84 +1,102 @@
-# 42 Workshop - Sui Project
+# 🧬 OpenSui
 
-Thanks for attending the 42 Workshop! This repository is for students to publish their Sui projects.
+## 🏗️ Aperçu du projet
+Ce projet fait suite au workshop organisé à **42 Paris** par **42 Blockchain**, en collaboration directe avec la **Fondation Sui**.  
+Encore merci aux organisateurs, aux participants et au staff de 42 Paris qui ont su nous accueillir comme il se doit.
 
-## Ideas
+OpenSui est une **preuve de concept** démontrant l’utilisation de la blockchain **Sui** pour construire des applications véritablement décentralisées.  
+Il s’agit d’un **réseau social entièrement on-chain**, où les profils, les posts et les interactions sont stockés sous forme d’objets Move.
 
-Your project can be **anything** you want, as long as it uses **Move**. You can build any kind of application, and there can be any kind of way to interact with it—whether through a front-end interface, scripts, a custom CLI, Sui CLI commands, or any other method.
+Aucune base de données, une maîtrise totale du contenu publié, et une valeur réelle donnée à la parole : voici les principes fondateurs du projet.
 
-Here are some ideas to get you started:
-
-- **DeFi Protocols**: Simple lending platforms, decentralized exchanges (DEX), liquidity pools, or yield farming contracts
-- **Games**: Board games, video games (not necessarily with a GUI), turn-based games, or any game logic that can benefit from blockchain
-- **Crowdfunding**: Platform for raising funds, with milestone-based releases or donation systems
-- **Publishing Platform**: Content publishing, NFT-based articles, or decentralized media
-- **Social Media**: Decentralized social networks, reputation systems, or community governance
-- **NFT Projects**: Custom NFT collections, marketplaces, or utility tokens
-- **Governance Systems**: Voting mechanisms, DAO structures, or proposal systems
-- **Supply Chain**: Tracking systems, provenance verification, or logistics management
-- **Identity Systems**: Decentralized identity, reputation, or credential verification
-- **Or anything else** that interests you and leverages Move's capabilities!
-
-The key is to be creative and build something that demonstrates your understanding of Move and the Sui blockchain.
+> 💡 Pour tester localement, modifiez la ligne commentée dans `vite.config.mts` à la racine pour indiquer le chemin absolu vers le dossier `src/`, ou implémentez votre propre solution dynamique.
 
 
-## Getting Started
+---
 
-### 1. Fork This Repository
+## 🚀 Fonctionnalités principales
 
-First, please **fork this repository** to your own GitHub account. This will create your own copy where you can work on your project.
+Les fonctionnalités actuellement mises en place sont les suivantes :
 
-### 2. Create Your Project Directory
+1. Création de profil on-chain  
+2. Publication de posts  
+3. Abonnement à un profil  
+4. Like / Unlike d’un post  
+5. Commentaire / Suppression de commentaire  
+6. Édition / Suppression d’un post  
 
-After forking and cloning the repository, create a directory for your project. Use the following naming convention:
+Nous pourrions à terme intégrer **Walrus** pour le stockage des avatars de profil ou encore du contenu des posts, mais pour l’instant :
+- Le contenu des posts est **entièrement on-chain**  
+- Le stockage des avatars se fait via **Pinata**
 
-```
-your-username/project-name
-```
+---
 
-Replace `your-username` with your actual GitHub username and `project-name` with a descriptive project name.
+## 🧩 Architecture du projet
 
-### 3. Publish Your Sui Project
+Le projet se décompose de la manière suivante :
+- Le dossier `move/` contient la logique **on-chain**
+- Le reste constitue l’application **web**
 
-Place your Sui Move project files in your directory. Make sure to include:
+### Frontend (React + Vite + Radix UI)
 
-- Your Move source files (`.move` files) with tests
-- A `Move.toml` with the `Move.lock` (tracking published packages)
-- A way to interact with the smart contract(s) (front-end interface, scripts, custom CLI, Sui CLI commands)
-- A README for your specific project explaining what it is, how it is designed and how to interact with it
+La stack front-end est simple et repose sur l’application de base fournie par **Mysten Labs**.  
+Elle utilise **React** avec **Vite** comme bundler et **Radix UI** comme bibliothèque d’interface.
 
-### 4. Submit Your Work
+L’application est composée de ses **layouts**, de ses **composants**, de **hooks** généraux, d’**outils utilitaires (utils)** et de **fichiers de configuration (config)**.
 
-Once you've completed your project:
+Chaque composant peut contenir ses micro-composants, ainsi que ses propres utilitaires, hooks ou types spécifiques.  
+L’objectif est de rendre l’ajout de nouveaux composants aussi simple que possible.
 
-1. Commit your changes
-2. Push to your forked repository
-3. Create a pull request to this repository
+Le routage est géré dans les dossiers `src/routes/` et `src/App.tsx` (qui référence les routes).  
+Il est donc facile d’ajouter de nouveaux chemins ou d’adapter la logique dans `App.tsx` pour intégrer un nouveau composant ou une nouvelle page.
 
-## Project Structure
+L’application pourrait bien sûr être optimisée, mais nous partons du principe qu’il s’agit d’une **preuve de concept**.  
+Libre à vous d’y contribuer ou de proposer des améliorations.
 
-Your directory structure should look something like this:
+---
 
-```
-project-name/
-├── Move.toml
-├── sources/
-│   └── module1.move
-│   └── module2.move
-├── tests/
-│   └── integration_tests.move
-└── README.md
-```
+### Smart Contracts (Move)
 
-## Resources
+Les modules Move déployés sont les suivants :  
 
-- [Sui Documentation](https://docs.sui.io/)
-- [Move Language Documentation](https://move-book.com/)
-- [Sui Tutorials](https://medium.com/@BlockRunner)
+- **Social**  
+  > Module parent sur lequel repose l’ensemble du réseau.  
 
-## Questions?
+- **Profiles**  
+  > Contient les champs `id`, `username`, `description`, `avatar_url` ainsi que les vecteurs `followed` et `following`.  
 
-If you have any questions, please open an issue in this repository or contact the workshop organizers.
+- **FollowersRegistry**  
+- **PostsRegistry**  
+- **LikesRegistry**  
+- **CommentsRegistry**  
+  > Ces quatre objets sont des **Tables** servant de registres et de compteurs, permettant d’éviter les boucles on-chain.  
+  > Les interactions viennent modifier ces tables, ce qui permet d’éviter de parcourir toutes les adresses pour retrouver les abonnés ou les éléments liés.
 
-Good luck with your Sui Move project!
+---
+
+### Backend / API
+
+Surprise : **aucun backend ni API** 🎉  
+Tout est **entièrement on-chain** (une API pourrait être envisagée pour un futur passage à l’échelle).
+
+---
+
+## 📂 Structure du projet
+
+```bash
+src/
+ ├─ components/
+ ├─ hooks/
+ ├─ config/
+ ├─ routes/
+ ├─ types/
+ ├─ utils/
+ ├─ App.tsx
+ ├─ main.tsx
+ └─ style.css
+move/
+ └─ social/
+    ├─ source/
+    │   └─ social.move
+    └─ Move.toml
 
