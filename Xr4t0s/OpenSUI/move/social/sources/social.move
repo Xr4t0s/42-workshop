@@ -3,15 +3,31 @@ module social::social {
     use sui::table::{Self as table, Table};
     use sui::event;
 	use sui::clock::Clock;
+	
+	use social::utils;
 
-    public struct Profiles has key {
-        id: UID,
-        profiles: vector<address>,
-        owners: Table<address, address>,
-    }
+	/*-------------------------------------------------------------------------------
+		Toutes les structs suivantes seront des objets possédés par l'utilisateur	| 
+		- Profile																	|
+		- Post																		|
+		- Like																		|
+		- Follow																	|
+																					|
+		Chaque intéraction crée un tel objet, l'édite ou le supprime.				|
+	-------------------------------------------------------------------------------*/
 
     public struct Profile has key, store {
         id: UID,
+		/*
+			Un objet Profile détient des informations basiques sur un profil en ligne.
+
+			owner:			addresse du créateur de l'objet "Profile"
+			username: 		nom du profil sur le réseau
+			description:	biographie du profil sur le réseau
+			avatar_url:		url ipfs de l'avatar
+			followers: 		vecteur d'addresse ayant mint l'objet "Follow" pour ce profile
+			followed: 		vecteur d'addresse pour lesquels le créateur du profil a mint l'objet "Follow"
+		*/
         owner: address,
         username: String,
         description: String,
@@ -20,25 +36,29 @@ module social::social {
         followed: vector<address>,
     }
 
-    public struct FollowNFT has key, store {
+    public struct Follow has key, store {
         id: UID,
+		/*
+			Un objet Follow détient les informations d'un follow.
+			
+			follower:				addresse du follower
+			followed_profile_id:	addresse du followed
+		*/
         follower: address,
         followed_profile_id: address,
     }
 
-    public struct FollowersRegistry has key {
-        id: UID,
-        counts: Table<address, u64>,
-    }
-
-    public struct PostsRegistry has key {
-        id: UID,
-        posts_of: Table<address, vector<address>>,
-        posts_count: Table<address, u64>,
-    }
-
     public struct Post has key, store {
         id: UID,
+		/*
+			Un objet Post correspond à un post simple sur un réseau.
+
+			author_profile_id:	id du profil créateur du post
+			author:				addresse de créateur
+			content: 			contenu du post
+			created_ms: 		timestamp de création
+			updated_ms: 		timestamp de modification (pour plus tard peut être)
+		*/
         author_profile_id: address,
         author: address,
         content: String,
@@ -46,26 +66,32 @@ module social::social {
         updated_ms: u64,
     }
 
-    public struct LikeNFT has key, store {
+    public struct Like has key, store {
         id: UID,
+		/*
+			Un objet Like détient les informations d'un like
+
+			post_id:			id de l'objet Post liké
+			liker_profile_id:	addresse du profile du liker
+			liker:				addresse du liker
+		*/
         post_id: address,
         liker_profile_id: address,
         liker: address,
     }
 
-    public struct LikeKey has copy, drop, store {
-        post: address,
-        liker: address,
-    }
-
-    public struct LikesRegistry has key {
+	public struct Comment has key, store {
         id: UID,
-        counts: Table<address, u64>,
-        index:  Table<LikeKey, address>,
-    }
+		/*
+			Un objet commentaire détient les informations d'un commentaire.
 
-    public struct Comment has key, store {
-        id: UID,
+			post_id:			id du post conçerné
+			author_profile_id:	id du profile qui commente
+			author:				addresse de commentateur
+			content:			contenu du commentaire
+			created_ms:			timestamp de création
+			updated_ms:			timestamp de modification (pour plus tard peut être)
+		*/
         post_id: address,
         author_profile_id: address,
         author: address,
@@ -74,57 +100,98 @@ module social::social {
         updated_ms: u64,
     }
 
-    public struct CommentsRegistry has key {
-        id: UID,
-        counts:     Table<address, u64>,
-        comments_of: Table<address, vector<address>>,
+
+	/*-------------------------------------------------------------------------------
+		Toutes les structs suivantes seront des objets publics appartenant au réseau| 
+		- Registre des profils														|
+		- Registre des followers													|
+		- Registre de posts															|
+		- Registre de like															|
+		- Registre de commentaire													|
+																					|
+		Chaque intéraction sur un tel objet le lit ou l'édite.						|
+	-------------------------------------------------------------------------------*/
+
+
+    public struct ProfilesRegistry has key {
+		/*
+			Cet objet ProfilesRegistry est un vecteur des profils créés, et un mapping des addresses de leurs créateurs.
+		*/        
+		id: UID,
+        profiles: vector<address>,
+        owners: Table<address, address>,
     }
 
-    /* ---------------------------- EVENTS ---------------------------- */
+    public struct FollowersRegistry has key {
+		/*
+			Cet objet FollowersRegistry est un simple compteur en fonction des profils.
+		*/
+        id: UID,
+        counts: Table<address, u64>,
+    }
 
+    public struct PostsRegistry has key {
+		/*
+			Cet objet PostsRegistry est un vecteur mappé profils + vecteur de tout les posts de celui-ci.
+			Il sert aussi de compteur de posts simple en fonction d'un profil.
+		*/
+        id: UID,
+        posts_of: Table<address, vector<address>>,
+        posts_count: Table<address, u64>,
+    }
+
+    public struct LikeKey has copy, drop, store {
+		/*
+			Cet objet LikeKey est un simple marqueur de like, on l'utilise en vecteur dans le registre de like.
+		*/
+        post: address,
+        liker: address,
+    }
+
+    public struct LikesRegistry has key {
+		/*
+			Cet objet LikesRegistry est un simple compteur en fonction des profils.
+		*/
+        id: UID,
+        counts: Table<address, u64>,
+        index:  Table<LikeKey, address>,
+    }
+
+    public struct CommentsRegistry has key {
+		/*
+			Cet objet CommentsRegistry est un vecteur mappé post + vecteur de tout les commentaires de celui-ci.
+			Il sert aussi de compteur de commentaires simple en fonction d'un post.
+		*/
+        id: UID,
+        comments_of: Table<address, vector<address>>,
+        counts:     Table<address, u64>,
+    }
+	
+
+    /* ---------------------------- EVENTS ---------------------------- */
+	// Event de profils
     public struct ProfileCreated has copy, drop, store { profile_id: address, owner: address }
     public struct AvatarUpdated  has copy, drop, store { profile_id: address }
+	// Event de following
     public struct Followed       has copy, drop, store { follower_profile_id: address, followed_profile_id: address }
     public struct Unfollowed     has copy, drop, store { follower_profile_id: address, followed_profile_id: address }
-
+	// Event des posts
     public struct PostPublished  has copy, drop, store { post_id: address, author_profile_id: address }
     public struct PostEdited     has copy, drop, store { post_id: address }
     public struct PostDeleted    has copy, drop, store { post_id: address, author_profile_id: address }
-
+	// Event des likes
     public struct Liked          has copy, drop, store { post_id: address, liker_profile_id: address, like_nft_id: address }
     public struct Unliked        has copy, drop, store { post_id: address, liker_profile_id: address, like_nft_id: address }
-
+	// Event des comments
     public struct CommentAdded   has copy, drop, store { post_id: address, comment_id: address, author_profile_id: address }
     public struct CommentDeleted has copy, drop, store { post_id: address, comment_id: address, author_profile_id: address }
 
 
-    fun contains(addr_list: &vector<address>, a: address): bool {
-        let n = vector::length(addr_list);
-        let mut i = 0;
-        while (i < n) {
-            if (vector::borrow(addr_list, i) == &a) return true;
-            i = i + 1;
-        };
-        false
-    }
-
-    fun remove_first(addr_list: &mut vector<address>, a: address) {
-        let n = vector::length(addr_list);
-        let mut i = 0;
-        while (i < n) {
-            if (vector::borrow(addr_list, i) == &a) {
-                let last = n - 1;
-                vector::swap(addr_list, i, last);
-                vector::pop_back(addr_list);
-                return
-            };
-            i = i + 1;
-        }
-    }
+    
 
 
     fun init(ctx: &mut TxContext) {
-        let registry_profiles = Profiles {
+        let registry_profiles = ProfilesRegistry {
             id: object::new(ctx),
             profiles: vector::empty<address>(),
             owners: table::new(ctx),
@@ -161,7 +228,7 @@ module social::social {
 
 	#[allow(lint(self_transfer))]
     public fun create_profile(
-        profiles: &mut Profiles,
+        profiles: &mut ProfilesRegistry,
         username: String,
         description: String,
         ctx: &mut TxContext
@@ -188,7 +255,7 @@ module social::social {
     }
 	#[allow(lint(self_transfer))]
     public fun create_profile_with_avatar(
-        profiles: &mut Profiles,
+        profiles: &mut ProfilesRegistry,
         username: String,
         description: String,
         avatar_url: String,
@@ -234,7 +301,7 @@ module social::social {
         assert!(follower_profile.owner == sender, 0);
         let my_profile_id = object::uid_to_address(&follower_profile.id);
         assert!(my_profile_id != followed_profile_id, 1);
-        assert!(!contains(&follower_profile.followed, followed_profile_id), 2);
+        assert!(!utils::contains_addr(&follower_profile.followed, followed_profile_id), 2);
 
         vector::push_back(&mut follower_profile.followed, followed_profile_id);
 
@@ -245,7 +312,7 @@ module social::social {
             table::add(&mut reg.counts, followed_profile_id, 1);
         };
 
-        let nft = FollowNFT { id: object::new(ctx), follower: sender, followed_profile_id };
+        let nft = Follow { id: object::new(ctx), follower: sender, followed_profile_id };
         event::emit(Followed { follower_profile_id: my_profile_id, followed_profile_id });
         transfer::transfer(nft, sender);
     }
@@ -253,13 +320,13 @@ module social::social {
     public fun unfollow(
         reg: &mut FollowersRegistry,
         follower_profile: &mut Profile,
-        nft: FollowNFT,
+        nft: Follow,
         _ctx: &mut TxContext
     ) {
         let sender = follower_profile.owner;
         assert!(nft.follower == sender, 10);
 
-        remove_first(&mut follower_profile.followed, nft.followed_profile_id);
+        utils::remove_first_addr(&mut follower_profile.followed, nft.followed_profile_id);
 
         if (table::contains(&reg.counts, nft.followed_profile_id)) {
             let c = table::borrow_mut(&mut reg.counts, nft.followed_profile_id);
@@ -269,7 +336,7 @@ module social::social {
         let pid = object::uid_to_address(&follower_profile.id);
         event::emit(Unfollowed { follower_profile_id: pid, followed_profile_id: nft.followed_profile_id });
 
-        let FollowNFT { id, follower: _, followed_profile_id: _ } = nft;
+        let Follow { id, follower: _, followed_profile_id: _ } = nft;
         object::delete(id);
     }
 
@@ -350,7 +417,7 @@ module social::social {
         if (table::contains(&posts.posts_of, pid)) {
             let v = table::borrow_mut(&mut posts.posts_of, pid);
             let post_id = object::uid_to_address(&id);
-            remove_first(v, post_id);
+            utils::remove_first_addr(v, post_id);
         };
 
         if (table::contains(&posts.posts_count, pid)) {
@@ -378,7 +445,7 @@ module social::social {
 		assert!(!table::contains(&likes.index, key), 31);
 
 		let pid = object::uid_to_address(&liker_profile.id);
-		let like = LikeNFT {
+		let like = Like {
 			id: object::new(ctx),
 			post_id,
 			liker_profile_id: pid,
@@ -403,7 +470,7 @@ module social::social {
     public fun unlike_post(
         likes: &mut LikesRegistry,
         liker_profile: &mut Profile,
-        like_nft: LikeNFT
+        like_nft: Like
     ) {
         let sender = liker_profile.owner;
         assert!(like_nft.liker == sender, 32);
@@ -425,7 +492,7 @@ module social::social {
             like_nft_id: object::uid_to_address(&like_nft.id)
         });
 
-        let LikeNFT { id, post_id: _, liker_profile_id: _, liker: _ } = like_nft;
+        let Like { id, post_id: _, liker_profile_id: _, liker: _ } = like_nft;
         object::delete(id);
     }
 
@@ -507,7 +574,7 @@ module social::social {
         if (table::contains(&comments.comments_of, post_id)) {
             let v = table::borrow_mut(&mut comments.comments_of, post_id);
             let cid = object::uid_to_address(&id);
-            remove_first(v, cid);
+            utils::remove_first_addr(v, cid);
         };
 
         if (table::contains(&comments.counts, post_id)) {
@@ -520,7 +587,7 @@ module social::social {
     }
 
 
-    public fun is_following(p: &Profile, who: address): bool { contains(&p.followed, who) }
+    public fun is_following(p: &Profile, who: address): bool { utils::contains_addr(&p.followed, who) }
 
     public fun followers_count(reg: &FollowersRegistry, profile_id: address): u64 {
         if (table::contains(&reg.counts, profile_id)) { *table::borrow(&reg.counts, profile_id) } else { 0 }
