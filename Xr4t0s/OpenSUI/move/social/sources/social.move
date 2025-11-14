@@ -2,31 +2,33 @@ module social::social {
     use std::string::{Self as string, String};
     use sui::table::{Self as table, Table};
     use sui::event;
-	use sui::clock::Clock;
+    use sui::clock::Clock;
 	
-	use social::utils;
+    use social::utils;
 
 	/*-------------------------------------------------------------------------------
-		Toutes les structs suivantes seront des objets possédés par l'utilisateur	| 
+		Objets possédés par les utilisateurs (owned objects)							|
 		- Profile																	|
 		- Post																		|
 		- Like																		|
 		- Follow																	|
+		- Comment																	|
 																					|
-		Chaque intéraction crée un tel objet, l'édite ou le supprime.				|
+		Chaque interaction des utilisateurs crée, met à jour ou détruit un de ces	|
+		objets.																		|
 	-------------------------------------------------------------------------------*/
 
+    /// Profil utilisateur de base sur le réseau social.
     public struct Profile has key, store {
         id: UID,
-		/*
-			Un objet Profile détient des informations basiques sur un profil en ligne.
 
-			owner:			addresse du créateur de l'objet "Profile"
-			username: 		nom du profil sur le réseau
-			description:	biographie du profil sur le réseau
-			avatar_url:		url ipfs de l'avatar
-			followers: 		vecteur d'addresse ayant mint l'objet "Follow" pour ce profile
-			followed: 		vecteur d'addresse pour lesquels le créateur du profil a mint l'objet "Follow"
+		/*
+			owner:			adresse du propriétaire du profil (wallet)
+			username: 		nom d’affichage du profil
+			description:	bio / texte de présentation
+			avatar_url:		URL (pour l'instant ipfs://...) de l’avatar
+			followers: 		(placeholder) liste d’adresses qui suivent ce profil
+			followed: 		liste d’adresses de profils suivis par ce profil
 		*/
         owner: address,
         username: String,
@@ -36,28 +38,28 @@ module social::social {
         followed: vector<address>,
     }
 
+    /// NFT de follow : prouve qu’un profil A suit un profil B.
     public struct Follow has key, store {
         id: UID,
+
 		/*
-			Un objet Follow détient les informations d'un follow.
-			
-			follower:				addresse du follower
-			followed_profile_id:	addresse du followed
+			follower:				adresse du follower (propriétaire du NFT)
+			followed_profile_id:	adresse de l’objet Profile suivi
 		*/
         follower: address,
         followed_profile_id: address,
     }
 
+    /// Post simple publié par un profil.
     public struct Post has key, store {
         id: UID,
-		/*
-			Un objet Post correspond à un post simple sur un réseau.
 
-			author_profile_id:	id du profil créateur du post
-			author:				addresse de créateur
-			content: 			contenu du post
-			created_ms: 		timestamp de création
-			updated_ms: 		timestamp de modification (pour plus tard peut être)
+		/*
+			author_profile_id:	adresse de l’objet Profile auteur du post
+			author:				adresse de l’owner de ce profil (wallet auteur)
+			content: 			contenu texte du post
+			created_ms: 		timestamp de création (millisecondes)
+			updated_ms: 		dernier timestamp de modification
 		*/
         author_profile_id: address,
         author: address,
@@ -66,31 +68,31 @@ module social::social {
         updated_ms: u64,
     }
 
+    /// NFT de like : prouve qu’un profil a liké un post.
     public struct Like has key, store {
         id: UID,
-		/*
-			Un objet Like détient les informations d'un like
 
-			post_id:			id de l'objet Post liké
-			liker_profile_id:	addresse du profile du liker
-			liker:				addresse du liker
+		/*
+			post_id:			adresse de l’objet Post liké
+			liker_profile_id:	adresse de l’objet Profile du liker
+			liker:				adresse de l’owner (wallet) du liker
 		*/
         post_id: address,
         liker_profile_id: address,
         liker: address,
     }
 
+	/// Commentaire attaché à un post.
 	public struct Comment has key, store {
         id: UID,
-		/*
-			Un objet commentaire détient les informations d'un commentaire.
 
-			post_id:			id du post conçerné
-			author_profile_id:	id du profile qui commente
-			author:				addresse de commentateur
-			content:			contenu du commentaire
-			created_ms:			timestamp de création
-			updated_ms:			timestamp de modification (pour plus tard peut être)
+		/*
+			post_id:			adresse de l’objet Post concerné
+			author_profile_id:	adresse de l’objet Profile qui commente
+			author:				adresse de l’owner (wallet) du commentateur
+			content:			contenu texte du commentaire
+			created_ms:			timestamp de création (millisecondes)
+			updated_ms:			dernier timestamp de modification
 		*/
         post_id: address,
         author_profile_id: address,
@@ -102,65 +104,73 @@ module social::social {
 
 
 	/*-------------------------------------------------------------------------------
-		Toutes les structs suivantes seront des objets publics appartenant au réseau| 
+		Objets partagés (shared objects) utilisés comme registres globaux			|
 		- Registre des profils														|
 		- Registre des followers													|
-		- Registre de posts															|
-		- Registre de like															|
-		- Registre de commentaire													|
+		- Registre des posts														|
+		- Registre des likes														|
+		- Registre des commentaires													|
 																					|
-		Chaque intéraction sur un tel objet le lit ou l'édite.						|
+		Ces objets sont partagés sur le réseau et servent d’index / compteur global.|
 	-------------------------------------------------------------------------------*/
 
-
+    /// Registre global des profils : liste et mapping owner → profile_id.
     public struct ProfilesRegistry has key {
 		/*
-			Cet objet ProfilesRegistry est un vecteur des profils créés, et un mapping des addresses de leurs créateurs.
-		*/        
+			profiles:	liste de toutes les adresses de profils créés
+			owners:		mapping adresse d’owner (wallet) -> adresse de Profile
+		*/
 		id: UID,
         profiles: vector<address>,
         owners: Table<address, address>,
     }
 
+    /// Registre global des followers (compteur de followers par profil).
     public struct FollowersRegistry has key {
 		/*
-			Cet objet FollowersRegistry est un simple compteur en fonction des profils.
+			counts[profile_id]: nombre de followers pour ce profil
 		*/
         id: UID,
         counts: Table<address, u64>,
     }
 
+    /// Registre global des posts, indexés par profil.
     public struct PostsRegistry has key {
 		/*
-			Cet objet PostsRegistry est un vecteur mappé profils + vecteur de tout les posts de celui-ci.
-			Il sert aussi de compteur de posts simple en fonction d'un profil.
+			posts_of[profile_id]:	vector des adresses des posts de ce profil
+			posts_count[profile_id]: compteur total de posts de ce profil
 		*/
         id: UID,
         posts_of: Table<address, vector<address>>,
         posts_count: Table<address, u64>,
     }
 
+    /// Clé logique (post, liker) pour indexer un like unique.
     public struct LikeKey has copy, drop, store {
 		/*
-			Cet objet LikeKey est un simple marqueur de like, on l'utilise en vecteur dans le registre de like.
+			post:	adresse de l’objet Post liké
+			liker:	adresse du wallet qui like
 		*/
         post: address,
         liker: address,
     }
 
+    /// Registre global des likes (compteurs + index pour éviter les doublons).
     public struct LikesRegistry has key {
 		/*
-			Cet objet LikesRegistry est un simple compteur en fonction des profils.
+			counts[post_id]:			nombre total de likes sur ce post
+			index[LikeKey]:			adresse de l’objet Like correspondant
 		*/
         id: UID,
         counts: Table<address, u64>,
         index:  Table<LikeKey, address>,
     }
 
+    /// Registre global des commentaires, indexés par post.
     public struct CommentsRegistry has key {
 		/*
-			Cet objet CommentsRegistry est un vecteur mappé post + vecteur de tout les commentaires de celui-ci.
-			Il sert aussi de compteur de commentaires simple en fonction d'un post.
+			comments_of[post_id]:	vector des adresses de Comment attachés à ce post
+			counts[post_id]:		nombre total de commentaires sur ce post
 		*/
         id: UID,
         comments_of: Table<address, vector<address>>,
@@ -169,28 +179,74 @@ module social::social {
 	
 
     /* ---------------------------- EVENTS ---------------------------- */
-	// Event de profils
+
+	/// Émis lors de la création d’un profil utilisateur.
     public struct ProfileCreated has copy, drop, store { profile_id: address, owner: address }
+
+	/// Émis lors d’une mise à jour de l’avatar d’un profil.
     public struct AvatarUpdated  has copy, drop, store { profile_id: address }
-	// Event de following
-    public struct Followed       has copy, drop, store { follower_profile_id: address, followed_profile_id: address }
-    public struct Unfollowed     has copy, drop, store { follower_profile_id: address, followed_profile_id: address }
-	// Event des posts
-    public struct PostPublished  has copy, drop, store { post_id: address, author_profile_id: address }
-    public struct PostEdited     has copy, drop, store { post_id: address }
-    public struct PostDeleted    has copy, drop, store { post_id: address, author_profile_id: address }
-	// Event des likes
-    public struct Liked          has copy, drop, store { post_id: address, liker_profile_id: address, like_nft_id: address }
-    public struct Unliked        has copy, drop, store { post_id: address, liker_profile_id: address, like_nft_id: address }
-	// Event des comments
-    public struct CommentAdded   has copy, drop, store { post_id: address, comment_id: address, author_profile_id: address }
-    public struct CommentDeleted has copy, drop, store { post_id: address, comment_id: address, author_profile_id: address }
+
+	/// Émis lorsqu’un profil commence à en suivre un autre.
+    public struct Followed has copy, drop, store {
+        follower_profile_id: address,
+        followed_profile_id: address
+    }
+
+	/// Émis lorsqu’un profil arrête de suivre un autre.
+    public struct Unfollowed has copy, drop, store {
+        follower_profile_id: address,
+        followed_profile_id: address
+    }
+
+	/// Émis lorsqu’un post est publié.
+    public struct PostPublished has copy, drop, store {
+        post_id: address,
+        author_profile_id: address
+    }
+
+	/// Émis lorsqu’un post est édité.
+    public struct PostEdited has copy, drop, store {
+        post_id: address
+    }
+
+	/// Émis lorsqu’un post est supprimé.
+    public struct PostDeleted has copy, drop, store {
+        post_id: address,
+        author_profile_id: address
+    }
+
+	/// Émis lorsqu’un post est liké.
+    public struct Liked has copy, drop, store {
+        post_id: address,
+        liker_profile_id: address,
+        like_nft_id: address
+    }
+
+	/// Émis lorsqu’un like est retiré.
+    public struct Unliked has copy, drop, store {
+        post_id: address,
+        liker_profile_id: address,
+        like_nft_id: address
+    }
+
+	/// Émis lorsqu’un commentaire est ajouté à un post.
+    public struct CommentAdded has copy, drop, store {
+        post_id: address,
+        comment_id: address,
+        author_profile_id: address
+    }
+
+	/// Émis lorsqu’un commentaire est supprimé d’un post.
+    public struct CommentDeleted has copy, drop, store {
+        post_id: address,
+        comment_id: address,
+        author_profile_id: address
+    }
 
 
-    
-
-
+    /// Initialise le protocole : crée et partage tous les registres globaux.
     fun init(ctx: &mut TxContext) {
+		// Registre global des profils
         let registry_profiles = ProfilesRegistry {
             id: object::new(ctx),
             profiles: vector::empty<address>(),
@@ -198,12 +254,14 @@ module social::social {
         };
         transfer::share_object(registry_profiles);
 
+		// Registre global des followers (compteurs par profil)
         let registry_followers = FollowersRegistry {
             id: object::new(ctx),
             counts: table::new(ctx),
         };
         transfer::share_object(registry_followers);
 
+		// Registre global des posts (index par profil + compteur)
         let registry_posts = PostsRegistry {
             id: object::new(ctx),
             posts_of: table::new(ctx),
@@ -211,6 +269,7 @@ module social::social {
         };
         transfer::share_object(registry_posts);
 
+		// Registre global des likes (compteurs + index LikeKey → Like)
         let registry_likes = LikesRegistry {
             id: object::new(ctx),
             counts: table::new(ctx),
@@ -218,6 +277,7 @@ module social::social {
         };
         transfer::share_object(registry_likes);
 
+		// Registre global des commentaires (index par post + compteur)
         let registry_comments = CommentsRegistry {
             id: object::new(ctx),
             counts: table::new(ctx),
@@ -225,6 +285,7 @@ module social::social {
         };
         transfer::share_object(registry_comments);
     }
+
 
 	#[allow(lint(self_transfer))]
     public fun create_profile(
