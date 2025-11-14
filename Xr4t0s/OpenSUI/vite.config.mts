@@ -5,7 +5,7 @@ export default defineConfig({
   plugins: [react()],
   resolve: {
     alias: {
-      "@": "/home/kratos/workSUI/Xr4t0s/OpenSUI/src", // à modifier
+      "@": "/vercel/path0/src", // à modifier
     },
   },
 });
