@@ -11,7 +11,7 @@ export type FollowingRow = {
   avatar_url?: string;
 };
 
-const FOLLOW_NFT_TYPE_SUFFIX = "::social::FollowNFT";
+const FOLLOW_NFT_TYPE_SUFFIX = "::social::Follow";
 const PROFILE_TYPE_SUFFIX   = "::social::Profile";
 
 const isObjectId = (x: unknown): x is string =>

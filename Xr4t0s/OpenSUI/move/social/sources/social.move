@@ -3,10 +3,6 @@ module social::social {
     use sui::table::{Self as table, Table};
     use sui::event;
     use sui::clock::Clock;
-    use sui::tx_context::{Self as tx_context, TxContext};
-    use sui::transfer;
-    use sui::object;
-    use std::vector;
 	
     use social::utils;
 

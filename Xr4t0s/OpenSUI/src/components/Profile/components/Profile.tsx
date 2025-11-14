@@ -154,7 +154,7 @@ export function Profile({ id }: { id: string }) {
       setErrorMsg(null);
       if (!followersRegistryId) return setErrorMsg("FollowersRegistryId manquant/invalid.");
       await assertMyProfileIsValid();
-      if (!followNftId) return setErrorMsg("Aucun FollowNFT trouvé pour ce profil.");
+      if (!followNftId) return setErrorMsg("Aucun Follow trouvé pour ce profil.");
 
       setWaiting("unfollow");
       const tx = new Transaction();

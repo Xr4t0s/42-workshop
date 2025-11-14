@@ -1,6 +1,4 @@
 module social::utils {
-    use std::vector;
-
 	/*-------------------------------------------------------------------------------
 		Fonctions utilitaires génériques sur les vecteurs d'adresses				|
 		- contains_addr : teste la présence d'une adresse dans un vector<address>	|

@@ -26,7 +26,7 @@ export type Post = {
   updatedMs: UnixMs;
 };
 
-export type FollowNFT = {
+export type Follow = {
   id: ObjectId;
   follower: Address;
   followedProfileId: Address;

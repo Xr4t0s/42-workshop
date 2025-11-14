@@ -9,7 +9,7 @@ import {
   POST_TYPE_SUFFIX,
 } from "@/config/constants";
 import type {
-  Profile, ProfilesRegistry, FollowersRegistry, PostsRegistry, Post, FollowNFT,
+  Profile, ProfilesRegistry, FollowersRegistry, PostsRegistry, Post, Follow,
 } from "@/types/types";
 
 export function mapMoveToProfile(o?: SuiObjectData | null): Profile | null {
@@ -43,7 +43,7 @@ export function mapMoveToPost(o?: SuiObjectData | null): Post | null {
   };
 }
 
-export function mapMoveToFollowNFT(o?: SuiObjectData | null): FollowNFT | null {
+export function mapMoveToFollowNFT(o?: SuiObjectData | null): Follow | null {
   if (!isMoveObject(o)) return null;
   const typ = getType(o);
   if (!typ?.endsWith(FOLLOW_NFT_TYPE_SUFFIX)) return null;

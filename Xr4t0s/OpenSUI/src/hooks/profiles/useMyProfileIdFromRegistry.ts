@@ -33,6 +33,5 @@ export function useMyProfileIdFromRegistry(owner?: string | null) {
     })();
     return () => { ok = false; };
   }, [profilesId, owner, sui]);
-
   return { profileId, ownersTableId };
 }
